@@ -1,0 +1,6 @@
+{
+  "name": "LintasTeknis — Kinerja Produksi",
+  "description": "Sistem pencatatan kinerja produksi real-time multi-pengguna, pengingat input harian otomatis, dasbor capaian bulanan, ekspor Excel/PDF, dan sistem validasi terpisah admin untuk Seksi Pelayanan Teknis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

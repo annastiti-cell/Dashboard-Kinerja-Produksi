@@ -1,0 +1,296 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Connection health-check probe (no sensitive data)
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // --- Global Helpers ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidMonthKey(key) {
+      return key is string && key.size() == 7 && key.matches('^[0-9]{4}-[0-9]{2}$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedUser()
+        && request.auth.token.email != null
+        && request.auth.token.email.lower() == 'annastiti@gmail.com';
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        isBootstrappedAdmin() ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // --- Validation Blueprints ---
+    function isValidWorkerProfile(data) {
+      return data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 100
+        && data.unitKerja is string && data.unitKerja.size() >= 2 && data.unitKerja.size() <= 80
+        && data.jabatan is string && data.jabatan.size() >= 2 && data.jabatan.size() <= 80
+        && data.sectionCode is string && data.sectionCode.size() <= 32 && data.sectionCode == 'pelayanan_teknis'
+        && data.dailyReminderEnabled is bool
+        && data.reminderHour is int && data.reminderHour >= 0 && data.reminderHour <= 23
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivate(data) {
+      return data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 150
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRecord(data) {
+      return data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.grantedBy is string && data.grantedBy.size() >= 1 && data.grantedBy.size() <= 128 && data.grantedBy.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 100
+        && data.createdAt is timestamp;
+    }
+
+    function isValidMonthlyTarget(data) {
+      return isValidMonthKey(data.monthKey)
+        && data.sectionCode is string && data.sectionCode.size() <= 32 && data.sectionCode == 'pelayanan_teknis'
+        && data.targetTotalOutput is number && data.targetTotalOutput > 0 && data.targetTotalOutput <= 1000000
+        && data.workingDaysTarget is int && data.workingDaysTarget >= 1 && data.workingDaysTarget <= 31
+        && data.dailyPerWorkerTarget is number && data.dailyPerWorkerTarget > 0 && data.dailyPerWorkerTarget <= 10000
+        && data.notes is string && data.notes.size() <= 500
+        && data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 && data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCategory(cat) {
+      return cat in [
+        'Mesin Paper Cutting',
+        'Mesin Slitter',
+        'Sablon',
+        'Offset',
+        'Mesin Plong',
+        'Mesin Laminasi',
+        'Finishing',
+        'Mesin Board To B',
+        'Mesin Band Sealer',
+        'Mesin Vertikal',
+        'Cutting & Slitter',
+        'Sablon & Offset',
+        'Plong & Laminasi',
+        'Finishing & BTB',
+        'Band Sealer & Vertikal',
+        'Pemeliharaan Jaringan',
+        'Instalasi Teknis',
+        'Kalibrasi & Uji',
+        'Penanganan Gangguan',
+        'Dokumentasi & Pelaporan',
+        'Lainnya'
+      ];
+    }
+
+    function isValidStatus(st) {
+      return st in ['pending', 'approved', 'rejected'];
+    }
+
+    function isValidProductionLog(data) {
+      return data.workerId is string && data.workerId.size() >= 1 && data.workerId.size() <= 128 && data.workerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.workerName is string && data.workerName.size() >= 2 && data.workerName.size() <= 100
+        && data.unitKerja is string && data.unitKerja.size() >= 2 && data.unitKerja.size() <= 80
+        && data.sectionCode is string && data.sectionCode.size() <= 32 && data.sectionCode == 'pelayanan_teknis'
+        && data.productionDate is string && data.productionDate.size() == 10 && data.productionDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && isValidMonthKey(data.monthKey)
+        && data.productionDate[0:7] == data.monthKey
+        && data.activityTitle is string && data.activityTitle.size() >= 3 && data.activityTitle.size() <= 140
+        && data.category is string && data.category.size() <= 60 && isValidCategory(data.category)
+        && data.quantity is number && data.quantity > 0 && data.quantity <= 100000
+        && data.unitMeasure is string && data.unitMeasure.size() >= 1 && data.unitMeasure.size() <= 30
+        && data.notes is string && data.notes.size() <= 600
+        && data.status is string && data.status.size() <= 20 && isValidStatus(data.status)
+        && (data.validatedBy == null || (data.validatedBy is string && data.validatedBy.size() >= 1 && data.validatedBy.size() <= 128 && data.validatedBy.matches('^[a-zA-Z0-9_\\-]+$')))
+        && (data.validatedByName == null || (data.validatedByName is string && data.validatedByName.size() >= 2 && data.validatedByName.size() <= 100))
+        && data.validationNotes is string && data.validationNotes.size() <= 500
+        && (data.validatedAt == null || data.validatedAt is timestamp)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    match /worker_profiles/{userId} {
+      allow get: if isVerifiedUser() && isValidId(userId);
+      allow list: if isVerifiedUser() && resource.data.sectionCode == 'pelayanan_teknis';
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && (isOwner(userId) || isAdmin())
+        && incoming().keys().hasAll(['uid', 'displayName', 'unitKerja', 'jabatan', 'sectionCode', 'dailyReminderEnabled', 'reminderHour', 'createdAt', 'updatedAt'])
+        && incoming().keys().hasOnly(['uid', 'displayName', 'unitKerja', 'jabatan', 'sectionCode', 'dailyReminderEnabled', 'reminderHour', 'createdAt', 'updatedAt'])
+        && incoming().uid == userId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isValidWorkerProfile(incoming());
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidWorkerProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().sectionCode == existing().sectionCode
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'unitKerja', 'jabatan', 'dailyReminderEnabled', 'reminderHour', 'updatedAt'])
+        && (isAdmin() || isOwner(userId));
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    match /users_private/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && isOwner(userId)
+        && incoming().keys().hasAll(['uid', 'email', 'createdAt', 'updatedAt'])
+        && incoming().keys().hasOnly(['uid', 'email', 'createdAt', 'updatedAt'])
+        && incoming().uid == request.auth.uid
+        && incoming().email == request.auth.token.email
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isValidUserPrivate(incoming());
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUserPrivate(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (isOwner(userId) && incoming().email == request.auth.token.email && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt']))
+        );
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isAdmin()
+        && isValidId(userId)
+        && incoming().keys().hasAll(['uid', 'grantedBy', 'displayName', 'createdAt'])
+        && incoming().keys().hasOnly(['uid', 'grantedBy', 'displayName', 'createdAt'])
+        && incoming().uid == userId
+        && incoming().grantedBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && isValidAdminRecord(incoming());
+      allow update: if false;
+      allow delete: if isAdmin() && isValidId(userId) && userId != request.auth.uid;
+    }
+
+    match /monthly_targets/{monthKey} {
+      allow get: if isVerifiedUser() && isValidMonthKey(monthKey);
+      allow list: if isVerifiedUser() && resource.data.sectionCode == 'pelayanan_teknis';
+      allow create: if isAdmin()
+        && isValidMonthKey(monthKey)
+        && incoming().keys().hasAll(['monthKey', 'sectionCode', 'targetTotalOutput', 'workingDaysTarget', 'dailyPerWorkerTarget', 'notes', 'updatedBy', 'updatedAt'])
+        && incoming().keys().hasOnly(['monthKey', 'sectionCode', 'targetTotalOutput', 'workingDaysTarget', 'dailyPerWorkerTarget', 'notes', 'updatedBy', 'updatedAt'])
+        && incoming().monthKey == monthKey
+        && incoming().updatedBy == request.auth.uid
+        && incoming().updatedAt == request.time
+        && isValidMonthlyTarget(incoming());
+      allow update: if isAdmin()
+        && isValidMonthKey(monthKey)
+        && isValidMonthlyTarget(incoming())
+        && incoming().monthKey == existing().monthKey
+        && incoming().sectionCode == existing().sectionCode
+        && incoming().updatedBy == request.auth.uid
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['targetTotalOutput', 'workingDaysTarget', 'dailyPerWorkerTarget', 'notes', 'updatedBy', 'updatedAt']);
+      allow delete: if isAdmin() && isValidMonthKey(monthKey);
+    }
+
+    match /production_logs/{logId} {
+      allow get: if isVerifiedUser() && isValidId(logId);
+      allow list: if isVerifiedUser() && resource.data.sectionCode == 'pelayanan_teknis';
+      allow create: if isVerifiedUser()
+        && isValidId(logId)
+        && incoming().keys().hasAll(['workerId', 'workerName', 'unitKerja', 'sectionCode', 'productionDate', 'monthKey', 'activityTitle', 'category', 'quantity', 'unitMeasure', 'notes', 'status', 'validatedBy', 'validatedByName', 'validationNotes', 'validatedAt', 'createdAt', 'updatedAt'])
+        && incoming().keys().hasOnly(['workerId', 'workerName', 'unitKerja', 'sectionCode', 'productionDate', 'monthKey', 'activityTitle', 'category', 'quantity', 'unitMeasure', 'notes', 'status', 'validatedBy', 'validatedByName', 'validationNotes', 'validatedAt', 'createdAt', 'updatedAt'])
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isValidProductionLog(incoming())
+        && (
+          (
+            isAdmin()
+            && exists(/databases/$(database)/documents/worker_profiles/$(incoming().workerId))
+            && (
+              (incoming().status == 'pending' && incoming().validatedBy == null && incoming().validatedByName == null && incoming().validatedAt == null) ||
+              (incoming().status != 'pending' && incoming().validatedBy == request.auth.uid && incoming().validatedAt == request.time)
+            )
+          ) ||
+          (
+            incoming().workerId == request.auth.uid
+            && incoming().status == 'pending'
+            && incoming().validatedBy == null
+            && incoming().validatedByName == null
+            && incoming().validationNotes == ''
+            && incoming().validatedAt == null
+            && exists(/databases/$(database)/documents/worker_profiles/$(request.auth.uid))
+          )
+        );
+      allow update: if isVerifiedUser()
+        && isValidId(logId)
+        && isValidProductionLog(incoming())
+        && incoming().sectionCode == existing().sectionCode
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (
+            isAdmin()
+            && incoming().diff(existing()).affectedKeys().hasOnly(['workerId', 'workerName', 'unitKerja', 'productionDate', 'monthKey', 'activityTitle', 'category', 'quantity', 'unitMeasure', 'notes', 'status', 'validatedBy', 'validatedByName', 'validationNotes', 'validatedAt', 'updatedAt'])
+            && (
+              (incoming().status == 'pending' && incoming().validatedBy == null && incoming().validatedByName == null && incoming().validatedAt == null) ||
+              (incoming().status != 'pending' && incoming().validatedBy == request.auth.uid && incoming().validatedAt == request.time)
+            )
+          ) ||
+          (
+            incoming().workerId == existing().workerId
+            && existing().workerId == request.auth.uid
+            && existing().status != 'approved'
+            && incoming().status == 'pending'
+            && incoming().validatedBy == null
+            && incoming().validatedByName == null
+            && incoming().validationNotes == ''
+            && incoming().validatedAt == null
+            && incoming().diff(existing()).affectedKeys().hasOnly(['productionDate', 'monthKey', 'activityTitle', 'category', 'quantity', 'unitMeasure', 'notes', 'status', 'validatedBy', 'validatedByName', 'validationNotes', 'validatedAt', 'updatedAt', 'workerName', 'unitKerja'])
+          )
+        );
+      allow delete: if isVerifiedUser()
+        && isValidId(logId)
+        && (isAdmin() || (existing().workerId == request.auth.uid && existing().status != 'approved'));
+    }
+  }
+}

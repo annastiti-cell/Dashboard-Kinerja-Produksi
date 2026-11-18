@@ -1,0 +1,300 @@
+{
+  "entities": {
+    "WorkerProfile": {
+      "title": "WorkerProfile",
+      "description": "Public operational profile for Seksi Pelayanan Teknis workers (PII-free).",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "unitKerja": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "jabatan": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "sectionCode": {
+          "type": "string",
+          "enum": ["pelayanan_teknis"],
+          "maxLength": 32
+        },
+        "dailyReminderEnabled": {
+          "type": "boolean"
+        },
+        "reminderHour": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "unitKerja",
+        "jabatan",
+        "sectionCode",
+        "dailyReminderEnabled",
+        "reminderHour",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Isolated PII storage for authenticated user emails.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 150
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "createdAt", "updatedAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted admin validator registry.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "grantedBy": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "grantedBy", "displayName", "createdAt"]
+    },
+    "MonthlyTarget": {
+      "title": "MonthlyTarget",
+      "description": "Monthly production output target configuration for Seksi Pelayanan Teknis.",
+      "type": "object",
+      "properties": {
+        "monthKey": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}$",
+          "maxLength": 7
+        },
+        "sectionCode": {
+          "type": "string",
+          "enum": ["pelayanan_teknis"],
+          "maxLength": 32
+        },
+        "targetTotalOutput": {
+          "type": "number"
+        },
+        "workingDaysTarget": {
+          "type": "integer"
+        },
+        "dailyPerWorkerTarget": {
+          "type": "number"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "updatedBy": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "monthKey",
+        "sectionCode",
+        "targetTotalOutput",
+        "workingDaysTarget",
+        "dailyPerWorkerTarget",
+        "notes",
+        "updatedBy",
+        "updatedAt"
+      ]
+    },
+    "ProductionLog": {
+      "title": "ProductionLog",
+      "description": "Daily production performance record submitted by a technical service worker.",
+      "type": "object",
+      "properties": {
+        "workerId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "workerName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "unitKerja": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "sectionCode": {
+          "type": "string",
+          "enum": ["pelayanan_teknis"],
+          "maxLength": 32
+        },
+        "productionDate": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "maxLength": 10
+        },
+        "monthKey": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}$",
+          "maxLength": 7
+        },
+        "activityTitle": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 140
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "Mesin Paper Cutting",
+            "Mesin Slitter",
+            "Sablon",
+            "Offset",
+            "Mesin Plong",
+            "Mesin Laminasi",
+            "Finishing",
+            "Mesin Board To B",
+            "Mesin Band Sealer",
+            "Mesin Vertikal"
+          ],
+          "maxLength": 60
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "unitMeasure": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"],
+          "maxLength": 20
+        },
+        "validatedBy": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "validatedByName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "validationNotes": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "validatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "workerId",
+        "workerName",
+        "unitKerja",
+        "sectionCode",
+        "productionDate",
+        "monthKey",
+        "activityTitle",
+        "category",
+        "quantity",
+        "unitMeasure",
+        "notes",
+        "status",
+        "validationNotes",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/worker_profiles/{userId}": {
+      "schema": { "$ref": "#/entities/WorkerProfile" },
+      "description": "Public operational profiles for workers in Seksi Pelayanan Teknis."
+    },
+    "/users_private/{userId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Private PII emails isolated to owner and admin."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Registry of authorized Admin Validators."
+    },
+    "/monthly_targets/{monthKey}": {
+      "schema": { "$ref": "#/entities/MonthlyTarget" },
+      "description": "Monthly operational output targets managed by Admin."
+    },
+    "/production_logs/{logId}": {
+      "schema": { "$ref": "#/entities/ProductionLog" },
+      "description": "Daily production logs submitted by workers and validated by Admin."
+    }
+  }
+}
